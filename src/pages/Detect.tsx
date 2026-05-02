@@ -209,7 +209,7 @@ const Detect = () => {
 
       for (const filename of sampleFiles) {
         try {
-          const response = await fetch(`/data/${filename}`);
+          const response = await fetch(`/data/${encodeURIComponent(filename)}`);
           if (response.ok) {
             const blob = await response.blob();
             folder?.file(filename, blob);
