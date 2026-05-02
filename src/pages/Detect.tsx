@@ -134,15 +134,27 @@ const Detect = () => {
     return isVideoFile ? 'Video' : 'Image';
   };
 
-  const handleMobileSampleDownload = (filename: string) => {
+  const handleMobileSampleDownload = async (filename: string) => {
     try {
       setDownloadingSample(filename);
-      const link = document.createElement('a');
-      link.href = `/data/${encodeURIComponent(filename)}`;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const fileUrl = `/data/${encodeURIComponent(filename)}`;
+
+      // Primary path: fetch then save as file for best browser compatibility.
+      const response = await fetch(fileUrl, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Fetch failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.size) {
+        throw new Error('Empty file received');
+      }
+
+      saveAs(blob, filename);
 
       toast.success('Download started', {
         id: 'sample-download-single',
@@ -150,9 +162,33 @@ const Detect = () => {
       });
     } catch (error) {
       console.error('Single file download error:', error);
-      toast.error('Could not start download. Please try again.', { id: 'sample-download-single' });
+
+      // Fallback path: open direct URL from user interaction context.
+      try {
+        const fallbackUrl = `/data/${encodeURIComponent(filename)}`;
+        const popup = window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+
+        if (!popup) {
+          const link = document.createElement('a');
+          link.href = fallbackUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        toast.success('Opened file for download', {
+          id: 'sample-download-single',
+          description: filename,
+        });
+      } catch (fallbackError) {
+        console.error('Fallback single file download error:', fallbackError);
+        toast.error('Could not start download. Please try again.', { id: 'sample-download-single' });
+      }
     } finally {
-      setTimeout(() => setDownloadingSample(null), 500);
+      setTimeout(() => setDownloadingSample(null), 700);
     }
   };
 
