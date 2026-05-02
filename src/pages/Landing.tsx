@@ -271,7 +271,6 @@ const Landing = () => {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <motion.div className="flex items-center gap-2" whileHover={{ scale: 1.05 }}>
             <motion.div
-              animate={{ rotate: [0, 360] }}
               transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
               className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-lg shadow-primary/20"
             >
