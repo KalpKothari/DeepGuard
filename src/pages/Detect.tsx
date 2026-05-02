@@ -24,7 +24,22 @@ const Detect = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [showMobileSamples, setShowMobileSamples] = useState(false);
+  const [downloadingSample, setDownloadingSample] = useState<string | null>(null);
   const isPremium = user?.subscription === 'premium';
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const sampleFiles = [
+    'Best-of-Shahrukh-Khan-.jpg',
+    'Kanyes iconic speech (Messi Version).mp4',
+    'man.jpg',
+    'Mission Impossible Tom Cruise.jpg',
+    'Morgan Freeman.mp4',
+    'morph-alia.png',
+    'Ranveer Singh.jfif',
+    'Rashmika Mandanna.jpg',
+    'Rashmika.png',
+    'Study hard, work hard, play harder.Srk Speech.mp4'
+  ];
 
   const handleFile = useCallback((f: File) => {
     // Check for video restriction on free plan
@@ -114,121 +129,69 @@ const Detect = () => {
     setProgress(0);
   };
 
+  const getSampleFileType = (filename: string) => {
+    const isVideoFile = /\.(mp4|mov|avi|webm|mkv)$/i.test(filename);
+    return isVideoFile ? 'Video' : 'Image';
+  };
+
+  const handleMobileSampleDownload = (filename: string) => {
+    try {
+      setDownloadingSample(filename);
+      const link = document.createElement('a');
+      link.href = `/data/${encodeURIComponent(filename)}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Download started', {
+        id: 'sample-download-single',
+        description: filename,
+      });
+    } catch (error) {
+      console.error('Single file download error:', error);
+      toast.error('Could not start download. Please try again.', { id: 'sample-download-single' });
+    } finally {
+      setTimeout(() => setDownloadingSample(null), 500);
+    }
+  };
+
   const handleDownloadSamples = async () => {
-    // All files from your /data folder
-    const sampleFiles = [
-      'Best-of-Shahrukh-Khan-.jpg',
-      'Kanyes iconic speech (Messi Version).mp4',
-      'man.jpg',
-      'Mission Impossible Tom Cruise.jpg',
-      'Morgan Freeman.mp4',
-      'morph-alia.png',
-      'Ranveer Singh.jfif',
-      'Rashmika Mandanna.jpg',
-      'Rashmika.png',
-      'Study hard, work hard, play harder.Srk Speech.mp4'
-    ];
+    if (isMobile) {
+      setShowMobileSamples(true);
+      return;
+    }
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    toast.loading(isMobile ? "Saving media to gallery..." : "Preparing secure ZIP file...", { id: 'sample-download' });
+    toast.loading("Preparing secure ZIP file...", { id: 'sample-download' });
 
     try {
-      if (isMobile) {
-        // Mobile Experience: Download files directly to device storage/gallery
-        let successCount = 0;
-        
-        for (const filename of sampleFiles) {
-          try {
-            // Try to fetch with proper headers and error handling
-            const response = await fetch(`/data/${filename}`, {
-              method: 'GET',
-              headers: {
-                'Accept': '*/*',
-              }
-            });
+      // Desktop Experience: Bundle all files into a ZIP
+      const zip = new JSZip();
+      const folder = zip.folder("DeepGuard_Sample_Media");
+      
+      let successfulFetches = 0;
 
-            if (!response.ok) {
-              console.warn(`Fetch failed for ${filename}: ${response.status}`);
-              continue;
-            }
-
+      for (const filename of sampleFiles) {
+        try {
+          const response = await fetch(`/data/${filename}`);
+          if (response.ok) {
             const blob = await response.blob();
-            
-            if (blob.size === 0) {
-              console.warn(`Empty blob for ${filename}`);
-              continue;
-            }
-
-            // Create blob URL and trigger download
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename;
-            link.type = blob.type;
-            
-            // Ensure link is in DOM for proper handling
-            document.body.appendChild(link);
-            
-            // Trigger click with slight delay for mobile reliability
-            setTimeout(() => {
-              link.dispatchEvent(new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-              }));
-              
-              // Clean up after a delay
-              setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(blobUrl);
-              }, 100);
-            }, 50);
-
-            successCount++;
-            
-            // Delay between downloads for mobile to ensure proper saving
-            await new Promise(r => setTimeout(r, 800));
-            
-          } catch (e) {
-            console.error(`Could not download file: ${filename}`, e);
+            folder?.file(filename, blob);
+            successfulFetches++;
           }
-        }
-        
-        if (successCount === 0) {
-          toast.error("Could not download samples. Please try again.", { id: 'sample-download' });
-        } else {
-          toast.success(`${successCount} sample files saved to your device!`, { id: 'sample-download' });
-        }
-      } else {
-        // Desktop Experience: Bundle all files into a ZIP
-        const zip = new JSZip();
-        const folder = zip.folder("DeepGuard_Sample_Media");
-        
-        let successfulFetches = 0;
-
-        for (const filename of sampleFiles) {
-          try {
-            const response = await fetch(`/data/${filename}`);
-            if (response.ok) {
-              const blob = await response.blob();
-              folder?.file(filename, blob);
-              successfulFetches++;
-            }
-          } catch (e) {
-            console.error(`Could not bundle file: ${filename}`, e);
-          }
-        }
-
-        if (successfulFetches === 0) {
-          toast.error("Could not locate sample files. Ensure they are in the /data/ folder.", { id: 'sample-download' });
-          return;
-        }
-
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-        saveAs(zipBlob, `DeepGuard_Sample_Media.zip`);
-        toast.success(`Sample ZIP downloaded (${successfulFetches} files included)!`, { id: 'sample-download' });
+        } catch (e) {
+          console.error(`Could not bundle file: ${filename}`, e);
       }
+      }
+
+      if (successfulFetches === 0) {
+        toast.error("Could not locate sample files. Ensure they are in the /data/ folder.", { id: 'sample-download' });
+        return;
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      saveAs(zipBlob, `DeepGuard_Sample_Media.zip`);
+      toast.success(`Sample ZIP downloaded (${successfulFetches} files included)!`, { id: 'sample-download' });
     } catch (error) {
       console.error("Download error:", error);
       toast.error("An error occurred during download.", { id: 'sample-download' });
@@ -346,6 +309,80 @@ const Detect = () => {
                   </Button>
                 </motion.div>
               )}
+
+              {/* Mobile sample picker */}
+              <AnimatePresence>
+                {showMobileSamples && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 bg-black/50"
+                    onClick={() => setShowMobileSamples(false)}
+                  >
+                    <motion.div
+                      initial={{ y: 40, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 40, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+                      className="absolute bottom-0 left-0 right-0 rounded-t-3xl border border-border/70 bg-background p-5 max-h-[75vh] overflow-y-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-heading text-lg font-bold text-foreground">Sample Media Files</h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowMobileSamples(false)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground mb-4">Tap a file to download individually.</p>
+
+                      <div className="space-y-2">
+                        {sampleFiles.map((filename) => {
+                          const fileType = getSampleFileType(filename);
+                          const ItemIcon = fileType === 'Video' ? FileVideo : FileImage;
+                          const isDownloading = downloadingSample === filename;
+
+                          return (
+                            <div
+                              key={filename}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2"
+                            >
+                              <div className="min-w-0 flex items-center gap-2">
+                                <ItemIcon className="h-4 w-4 shrink-0 text-primary" />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-foreground">{filename}</p>
+                                  <p className="text-xs text-muted-foreground">{fileType}</p>
+                                </div>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="shrink-0"
+                                disabled={isDownloading}
+                                onClick={() => handleMobileSampleDownload(filename)}
+                              >
+                                {isDownloading ? (
+                                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="mr-1 h-3.5 w-3.5" />
+                                )}
+                                {isDownloading ? 'Starting...' : 'Download'}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ) : (
             <motion.div key="result" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
