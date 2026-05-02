@@ -21,7 +21,7 @@ const features = [
 const stats = [
   { label: 'Accuracy Rate', value: '99.2%', icon: ShieldCheck },
   { label: 'Files Analyzed', value: '2M+', icon: BarChart3 },
-  { label: 'Global Users', value: '50k+', icon: Globe },
+  { label: 'Latency', value: '3s > ', icon: Globe },
 ];
 
 const liveThreats = [
@@ -496,23 +496,6 @@ const Landing = () => {
             <p className="text-xs font-bold text-foreground">Deepfake Detected</p>
             <p className="text-[10px] text-destructive font-mono font-bold">Facial Morphing</p>
           </div>
-        </motion.div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-        >
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Scroll</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-5 h-8 rounded-full border-2 border-border/50 flex items-start justify-center pt-1.5"
-          >
-            <div className="w-1 h-2 bg-primary rounded-full" />
-          </motion.div>
         </motion.div>
       </motion.section>
 

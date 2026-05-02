@@ -115,13 +115,18 @@ const Detect = () => {
   };
 
   const handleDownloadSamples = async () => {
-    // These match the exact filenames from your /data folder screenshot
+    // All files from your /data folder
     const sampleFiles = [
+      'Best-of-Shahrukh-Khan-.jpg',
+      'Kanyes iconic speech (Messi Version).mp4',
+      'man.jpg',
       'Mission Impossible Tom Cruise.jpg',
       'Morgan Freeman.mp4',
       'morph-alia.png',
+      'Ranveer Singh.jfif',
+      'Rashmika Mandanna.jpg',
       'Rashmika.png',
-      'Kanyes iconic speech (Messi Version).mp4'
+      'Study hard, work hard, play harder.Srk Speech.mp4'
     ];
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -130,21 +135,40 @@ const Detect = () => {
 
     try {
       if (isMobile) {
-        // Mobile Experience: Download files directly so they populate the Gallery/Camera Roll
+        // Mobile Experience: Download files directly to device storage/gallery
+        let successCount = 0;
+        
         for (const filename of sampleFiles) {
-          const link = document.createElement('a');
-          link.href = `/data/${filename}`;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Slight delay to prevent mobile browsers from blocking multiple popups
-          await new Promise(r => setTimeout(r, 400));
+          try {
+            const response = await fetch(`/data/${filename}`);
+            if (response.ok) {
+              const blob = await response.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = blobUrl;
+              link.download = filename;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(blobUrl);
+              successCount++;
+              
+              // Delay to ensure files save properly
+              await new Promise(r => setTimeout(r, 300));
+            }
+          } catch (e) {
+            console.error(`Could not download file: ${filename}`, e);
+          }
         }
-        toast.success("Samples downloaded to your device!", { id: 'sample-download' });
+        
+        if (successCount === 0) {
+          toast.error("Could not download samples. Please try again.", { id: 'sample-download' });
+        } else {
+          toast.success(`${successCount} sample files saved to your device!`, { id: 'sample-download' });
+        }
       } else {
-        // Desktop Experience: Fetch files individually and bundle them into a valid ZIP
+        // Desktop Experience: Bundle all files into a ZIP
         const zip = new JSZip();
         const folder = zip.folder("DeepGuard_Sample_Media");
         
@@ -159,7 +183,7 @@ const Detect = () => {
               successfulFetches++;
             }
           } catch (e) {
-            console.error(`Could not bundle file: ${filename}`);
+            console.error(`Could not bundle file: ${filename}`, e);
           }
         }
 
@@ -170,9 +194,10 @@ const Detect = () => {
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
         saveAs(zipBlob, `DeepGuard_Sample_Media.zip`);
-        toast.success("Sample ZIP downloaded successfully!", { id: 'sample-download' });
+        toast.success(`Sample ZIP downloaded (${successfulFetches} files included)!`, { id: 'sample-download' });
       }
     } catch (error) {
+      console.error("Download error:", error);
       toast.error("An error occurred during download.", { id: 'sample-download' });
     }
   };
