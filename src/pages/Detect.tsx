@@ -140,23 +140,56 @@ const Detect = () => {
         
         for (const filename of sampleFiles) {
           try {
-            const response = await fetch(`/data/${filename}`);
-            if (response.ok) {
-              const blob = await response.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = blobUrl;
-              link.download = filename;
-              link.style.display = 'none';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(blobUrl);
-              successCount++;
-              
-              // Delay to ensure files save properly
-              await new Promise(r => setTimeout(r, 300));
+            // Try to fetch with proper headers and error handling
+            const response = await fetch(`/data/${filename}`, {
+              method: 'GET',
+              headers: {
+                'Accept': '*/*',
+              }
+            });
+
+            if (!response.ok) {
+              console.warn(`Fetch failed for ${filename}: ${response.status}`);
+              continue;
             }
+
+            const blob = await response.blob();
+            
+            if (blob.size === 0) {
+              console.warn(`Empty blob for ${filename}`);
+              continue;
+            }
+
+            // Create blob URL and trigger download
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.type = blob.type;
+            
+            // Ensure link is in DOM for proper handling
+            document.body.appendChild(link);
+            
+            // Trigger click with slight delay for mobile reliability
+            setTimeout(() => {
+              link.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+              }));
+              
+              // Clean up after a delay
+              setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(blobUrl);
+              }, 100);
+            }, 50);
+
+            successCount++;
+            
+            // Delay between downloads for mobile to ensure proper saving
+            await new Promise(r => setTimeout(r, 800));
+            
           } catch (e) {
             console.error(`Could not download file: ${filename}`, e);
           }
