@@ -1,17 +1,20 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { 
   User, Mail, Calendar, LogOut, ShieldCheck, 
-  Fingerprint, HardDrive, Share2, Award 
+  Fingerprint, HardDrive, Share2, Award, Zap 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import { getScanHistory } from '@/lib/detection';
+import { SubscriptionModal } from '@/components/SubscriptionModal';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateSubscription } = useAuth();
   const navigate = useNavigate();
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   
   // Logic to fetch user impact data
   const scans = user ? getScanHistory(user.id) : [];
@@ -46,7 +49,7 @@ const Profile = () => {
               </div>
 
               <h1 className="font-heading text-xl font-bold text-foreground truncate">{user.name}</h1>
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">Verified Analyst</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">Truth Matters</p>
               
               <div className="pt-6 border-t border-border/50 space-y-3">
                 <div className="flex items-center justify-between text-xs">
@@ -130,13 +133,35 @@ const Profile = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm">Storage Utilization</h4>
-                  <p className="text-xs text-muted-foreground">Analyst Plan - Gain a deeper understanding of your data</p>
+                  <p className="text-xs text-muted-foreground">
+                    {user.subscription === 'premium' ? 'Premium Plan - Unlimited' : 'Analyst Plan - Gain a deeper understanding of your data'}
+                  </p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="rounded-xl text-[10px] font-black uppercase tracking-tighter">
-                Manage Plan
+              <Button 
+                onClick={() => setSubscriptionModalOpen(true)} 
+                variant="outline" 
+                size="sm" 
+                className="rounded-xl text-[10px] font-black uppercase tracking-tighter"
+              >
+                {user.subscription === 'premium' ? (
+                  <>
+                    <Zap className="w-3 h-3 mr-1 text-primary" />
+                    Premium Active
+                  </>
+                ) : (
+                  'Upgrade to Premium'
+                )}
               </Button>
             </div>
+
+            {/* Subscription Modal */}
+            <SubscriptionModal
+              isOpen={subscriptionModalOpen}
+              onClose={() => setSubscriptionModalOpen(false)}
+              currentPlan={user.subscription}
+              onUpdatePlan={updateSubscription}
+            />
           </div>
         </motion.div>
       </div>

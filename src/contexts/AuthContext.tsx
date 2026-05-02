@@ -5,6 +5,7 @@ interface User {
   name: string;
   email: string;
   createdAt: string;
+  subscription: 'free' | 'premium';
 }
 
 interface AuthContextType {
@@ -13,6 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateSubscription: (plan: 'free' | 'premium') => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -57,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       name,
       email,
       createdAt: new Date().toISOString(),
+      subscription: 'free',
     };
     users.push({ ...newUser, password: hashedPw });
     localStorage.setItem('df_users', JSON.stringify(users));
@@ -85,9 +88,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('df_user');
     setUser(null);
   };
+const updateSubscription = (plan: 'free' | 'premium') => {
+    if (user) {
+      const updatedUser = { ...user, subscription: plan };
+      setUser(updatedUser);
+      localStorage.setItem('df_user', JSON.stringify(updatedUser));
+      // Also update in users list for persistence
+      const users = JSON.parse(localStorage.getItem('df_users') || '[]');
+      const userIndex = users.findIndex((u: any) => u.id === user.id);
+      if (userIndex >= 0) {
+        users[userIndex].subscription = plan;
+        localStorage.setItem('df_users', JSON.stringify(users));
+      }
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, updateSubscription }}>
       {children}
     </AuthContext.Provider>
   );

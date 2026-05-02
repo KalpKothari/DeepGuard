@@ -1,9 +1,10 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, LayoutDashboard, Upload, History, User } from 'lucide-react';
+import { Shield, LayoutDashboard, Upload, History, User, Home } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const navItems = [
+  { to: '/', icon: Home, label: 'Home' },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/detect', icon: Upload, label: 'Detect' },
   { to: '/history', icon: History, label: 'History' },
