@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { recordAuthEvent } from '@/lib/supabaseTelemetry';
+import { ADMIN_EMAIL, isValidAdminCredential } from '@/lib/admin';
 
 interface User {
   id: string;
@@ -53,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (users.find((u: any) => u.email === email)) {
       throw new Error('Email already registered');
     }
+
     const hashedPw = await hashPassword(password);
     const newUser: User = {
       id: crypto.randomUUID(),
@@ -61,26 +64,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       createdAt: new Date().toISOString(),
       subscription: 'free',
     };
+
     users.push({ ...newUser, password: hashedPw });
     localStorage.setItem('df_users', JSON.stringify(users));
+
     const token = generateToken();
     localStorage.setItem('df_token', token);
     localStorage.setItem('df_user', JSON.stringify(newUser));
     setUser(newUser);
+    void recordAuthEvent(newUser, 'signup');
   };
 
   const login = async (email: string, password: string) => {
     const users = JSON.parse(localStorage.getItem('df_users') || '[]');
     const hashedPw = await hashPassword(password);
-    const found = users.find((u: any) => u.email === email && u.password === hashedPw);
-    if (!found) {
-      throw new Error('Invalid email or password');
+
+    let userData: User | null = null;
+
+    if (isValidAdminCredential(email, hashedPw)) {
+      const existingUser = localStorage.getItem('df_user');
+      const parsedExistingUser = existingUser ? (JSON.parse(existingUser) as User) : null;
+      userData = parsedExistingUser?.email === ADMIN_EMAIL
+        ? parsedExistingUser
+        : {
+            id: 'admin-user',
+            name: 'Admin',
+            email: ADMIN_EMAIL,
+            createdAt: new Date().toISOString(),
+            subscription: 'premium',
+          };
+    } else {
+      const normalizedEmail = email.trim().toLowerCase();
+      const found = users.find((u: any) => u.email.toLowerCase() === normalizedEmail && u.password === hashedPw);
+      if (!found) {
+        throw new Error('Invalid email or password');
+      }
+      const { password: _, ...foundUser } = found;
+      userData = foundUser as User;
     }
-    const { password: _, ...userData } = found;
+
     const token = generateToken();
     localStorage.setItem('df_token', token);
     localStorage.setItem('df_user', JSON.stringify(userData));
     setUser(userData);
+    void recordAuthEvent(userData, 'login');
   };
 
   const logout = () => {
@@ -88,18 +115,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('df_user');
     setUser(null);
   };
-const updateSubscription = (plan: 'free' | 'premium') => {
+  const updateSubscription = (plan: 'free' | 'premium') => {
     if (user) {
       const updatedUser = { ...user, subscription: plan };
       setUser(updatedUser);
       localStorage.setItem('df_user', JSON.stringify(updatedUser));
-      // Also update in users list for persistence
+
       const users = JSON.parse(localStorage.getItem('df_users') || '[]');
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       if (userIndex >= 0) {
         users[userIndex].subscription = plan;
         localStorage.setItem('df_users', JSON.stringify(users));
       }
+
+      void recordAuthEvent(updatedUser, 'subscription_update');
     }
   };
 

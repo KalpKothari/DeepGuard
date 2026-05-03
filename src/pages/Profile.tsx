@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import { getScanHistory } from '@/lib/detection';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
+import { isAdminEmail } from '@/lib/admin';
 
 const Profile = () => {
   const { user, logout, updateSubscription } = useAuth();
@@ -25,6 +26,12 @@ const Profile = () => {
     logout();
     navigate('/');
   };
+
+  const handleOpenAdminVisitors = () => {
+    navigate('/admin-dashboard');
+  };
+
+  const isAdmin = isAdminEmail(user.email);
 
   if (!user) return null;
 
@@ -71,6 +78,17 @@ const Profile = () => {
                 <LogOut className="w-4 h-4" /> 
                 <span className="font-bold text-xs uppercase tracking-widest">Terminate Session</span>
               </Button>
+
+              {isAdmin && (
+                <Button
+                  onClick={handleOpenAdminVisitors}
+                  variant="outline"
+                  className="w-full justify-start gap-3 rounded-xl h-12 mt-3 text-xs font-black uppercase tracking-widest"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Visitor Analytics
+                </Button>
+              )}
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminEmail } from '@/lib/admin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Shield, Eye, EyeOff } from 'lucide-react';
@@ -48,7 +49,7 @@ const Login = () => {
     try {
       await login(email, password);
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      navigate(isAdminEmail(email) ? '/admin-dashboard' : '/dashboard');
     } catch (err: any) {
       toast.error(err.message);
     } finally {
