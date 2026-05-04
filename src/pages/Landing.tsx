@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, useScroll, useTransform, useSpring, useMotionValue, type Variants } from 'framer-motion';
+import { QRCodeSVG as QRCode } from 'qrcode.react';
 import { 
   Shield, Upload, Zap, Lock, ArrowRight, CheckCircle, 
   BarChart3, Globe, ShieldCheck, Cpu, HelpCircle, AlertTriangle,
-  Activity, Video, Image as ImageIcon, TrendingUp
+  Activity, Video, Image as ImageIcon, TrendingUp, Heart, QrCode, Smartphone, IndianRupee, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { buildSupportUpiLink, recordSupportIntent, SUPPORT_PAYEE_NAME, SUPPORT_UPI_ID } from '@/lib/support';
+import { SUPPORT_SECTION_ID, scrollToSupportSection } from '@/lib/supportNavigation';
 
 /* ─── DATA ─────────────────────────────────────────────────────────────── */
 const features = [
@@ -41,6 +45,8 @@ const liveThreats = [
   { icon: Video, name: 'political_speech_edit.mp4', status: 'Deepfake', conf: '99%', time: '2m ago' },
   { icon: ImageIcon, name: 'family_photo_old.jpg', status: 'Authentic', conf: '97%', time: '3m ago' },
 ];
+
+const supportAmounts = [49, 99, 199];
 
 /* ─── ANIMATED STAT ─────────────────────────────────────────────────────── */
 const AnimatedStat = ({ value }: { value: string }) => {
@@ -232,8 +238,14 @@ const ScrollReveal = ({
 /* ─── MAIN COMPONENT ─────────────────────────────────────────────────────── */
 const Landing = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const { scrollYProgress } = useScroll();
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [selectedSupportAmount, setSelectedSupportAmount] = useState(99);
+  const [customSupportAmount, setCustomSupportAmount] = useState('');
+  const [showSupportQr, setShowSupportQr] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const supportSectionRef = useRef<HTMLDivElement>(null);
 
   // Scroll-driven hero parallax
   const heroScale = useTransform(scrollYProgress, [0, 0.18], [1, 0.9]);
@@ -248,6 +260,74 @@ const Landing = () => {
     window.addEventListener('mousemove', move);
     return () => window.removeEventListener('mousemove', move);
   }, []);
+
+  useEffect(() => {
+    const detectMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as typeof window & { opera?: string }).opera || '';
+      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+      const mobileUa = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      setIsMobileDevice(Boolean(mobileUa || coarsePointer));
+    };
+
+    detectMobile();
+    window.addEventListener('resize', detectMobile);
+    return () => window.removeEventListener('resize', detectMobile);
+  }, []);
+
+  useEffect(() => {
+    const locationState = location.state as { scrollToSupportSection?: boolean } | null;
+    if (!locationState?.scrollToSupportSection) return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      scrollToSupportSection();
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [location.key, location.state]);
+
+  const parsedCustomAmount = Number(customSupportAmount);
+  const supportAmount = customSupportAmount.trim() && Number.isFinite(parsedCustomAmount) && parsedCustomAmount > 0
+    ? parsedCustomAmount
+    : selectedSupportAmount;
+  const isSupportAmountValid = Number.isFinite(supportAmount) && supportAmount >= 10;
+  const supportAmountLabel = Number.isInteger(supportAmount) ? supportAmount.toFixed(0) : supportAmount.toFixed(2);
+  const supportPaymentLink = isSupportAmountValid ? buildSupportUpiLink(supportAmount) : '';
+
+  // Reset QR if amount becomes invalid
+  useEffect(() => {
+    if (!isSupportAmountValid && showSupportQr) {
+      setShowSupportQr(false);
+    }
+  }, [isSupportAmountValid, showSupportQr]);
+
+  const handleSupportPayment = () => {
+    if (!isSupportAmountValid) return;
+
+    const platform: 'mobile' | 'desktop' = isMobileDevice ? 'mobile' : 'desktop';
+
+    void recordSupportIntent({
+      amount: supportAmount,
+      paymentLink: supportPaymentLink,
+      platform,
+      source: 'landing-support-section',
+      user: user
+        ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            subscription: user.subscription,
+          }
+        : null,
+    });
+
+    if (platform === 'mobile') {
+      window.location.href = supportPaymentLink;
+      return;
+    }
+
+    supportSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setShowSupportQr(true);
+  };
 
   return (
     <div className="min-h-screen bg-background selection:bg-primary/30 overflow-x-hidden">
@@ -278,7 +358,7 @@ const Landing = () => {
             </motion.div>
             <span className="font-heading text-lg font-bold text-foreground">DeepGuard</span>
           </motion.div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {user ? (
               <Link to="/dashboard">
                 <Button className="rounded-xl gradient-primary text-primary-foreground font-semibold shadow-md hover:shadow-primary/25 transition-all">
@@ -297,6 +377,13 @@ const Landing = () => {
                     </Button>
                   </MagneticButton>
                 </Link>
+                <Button
+                  variant="ghost"
+                  onClick={() => scrollToSupportSection()}
+                  className="rounded-xl font-medium hover:bg-primary/5 text-primary flex items-center gap-2"
+                >
+                  Support 💜
+                </Button>
               </>
             )}
           </div>
@@ -849,6 +936,156 @@ const Landing = () => {
                 </Link>
               </motion.div>
             </div>
+          </div>
+        </ScrollReveal>
+      </section>
+
+      {/* ── SUPPORT THE PROJECT ── */}
+      <section id={SUPPORT_SECTION_ID} className="max-w-6xl mx-auto px-4 pb-16 md:pb-24 scroll-mt-24 md:scroll-mt-28">
+        <ScrollReveal direction="up">
+          <div
+            ref={supportSectionRef}
+            className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-gradient-to-br from-background via-background to-primary/5 p-6 md:p-10 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.45)]"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.12),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(236,72,153,0.10),transparent_30%)]" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+            <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                  <Heart className="h-3.5 w-3.5 fill-current" />
+                  Support the Project
+                </div>
+
+                <div className="space-y-3 max-w-2xl">
+                  
+                  <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                    If you found this tool helpful or interesting, consider supporting its development.
+                  </p>
+                  <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                    Your contribution helps improve the experience and keep it accessible for everyone.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {supportAmounts.map((amount) => {
+                    const isActive = selectedSupportAmount === amount && !customSupportAmount.trim();
+                    return (
+                      <motion.button
+                        key={amount}
+                        type="button"
+                        whileHover={{ y: -2, scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setSelectedSupportAmount(amount);
+                          setCustomSupportAmount('');
+                        }}
+                        className={`rounded-2xl border px-4 py-3 text-left transition-all ${
+                          isActive
+                            ? 'border-primary/40 bg-primary/10 text-primary shadow-[0_10px_30px_-16px_rgba(168,85,247,0.55)]'
+                            : 'border-border/60 bg-background/80 text-foreground hover:border-primary/30 hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Preset</div>
+                        <div className="mt-1 flex items-center gap-1.5 text-lg font-black">
+                          <IndianRupee className="h-4 w-4" />
+                          {amount}
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                      Custom amount
+                    </label>
+                    <Input
+                      type="number"
+                      min="10"
+                      step="1"
+                      inputMode="numeric"
+                      value={customSupportAmount}
+                      onChange={(e) => setCustomSupportAmount(e.target.value)}
+                      onFocus={() => setSelectedSupportAmount(99)}
+                      placeholder="Enter a custom amount"
+                      className="h-12 rounded-2xl border-border/60 bg-background/90 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                    />
+                  </div>
+
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      type="button"
+                      onClick={handleSupportPayment}
+                      disabled={!isSupportAmountValid}
+                      className="h-12 rounded-2xl bg-gradient-to-r from-primary via-purple-500 to-pink-500 px-6 font-semibold text-primary-foreground shadow-xl shadow-primary/25 hover:shadow-primary/35"
+                    >
+                      Pay via UPI
+                      <Sparkles className="ml-2 h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                </div>
+
+                <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-primary" />
+                    <span>UPI ID: <span className="font-semibold text-foreground">{SUPPORT_UPI_ID}</span></span>
+                  </div>
+                  <div className="font-medium text-foreground/90">Payee: {SUPPORT_PAYEE_NAME}</div>
+                </div>
+
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  This is a voluntary contribution. Payments are made directly via UPI and are not automatically verified.
+                </p>
+              </div>
+
+              {!isMobileDevice && showSupportQr && isSupportAmountValid && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="relative"
+                >
+                  <div className="rounded-[1.75rem] border border-border/60 bg-background/90 p-4 shadow-2xl mx-auto max-w-[280px] lg:max-w-[300px]">
+                    <div className="mb-4 text-center">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Scan this QR with any UPI app to complete payment</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">Amount: ₹{supportAmountLabel}</p>
+                    </div>
+
+                    <div className="overflow-hidden rounded-[1.5rem] border border-border/60 bg-secondary/30 p-3">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center justify-center"
+                      >
+                        <div className="rounded-[1.25rem] bg-white p-2 shadow-lg">
+                          <QRCode
+                            value={supportPaymentLink}
+                            size={200}
+                            level="H"
+                            includeMargin
+                          />
+                        </div>
+                      </motion.div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {!isMobileDevice && !showSupportQr && !isSupportAmountValid && (
+              <div className="relative mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-6 text-center text-sm text-destructive">
+                Minimum amount is ₹10
+              </div>
+            )}
+
+            {!isMobileDevice && !showSupportQr && isSupportAmountValid && (
+              <div className="relative mt-8 rounded-2xl border border-dashed border-border/60 bg-background/60 px-5 py-6 text-center text-sm text-muted-foreground">
+                Desktop mode is ready. Click <span className="font-semibold text-foreground">Pay via UPI</span> to reveal the QR.
+              </div>
+            )}
           </div>
         </ScrollReveal>
       </section>
