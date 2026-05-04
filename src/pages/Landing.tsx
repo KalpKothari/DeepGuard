@@ -277,14 +277,15 @@ const Landing = () => {
 
   useEffect(() => {
     const locationState = location.state as { scrollToSupportSection?: boolean } | null;
-    if (!locationState?.scrollToSupportSection) return;
+    const shouldScrollToSupport = locationState?.scrollToSupportSection || location.hash === `#${SUPPORT_SECTION_ID}`;
+    if (!shouldScrollToSupport) return;
 
     const rafId = window.requestAnimationFrame(() => {
       scrollToSupportSection();
     });
 
     return () => window.cancelAnimationFrame(rafId);
-  }, [location.key, location.state]);
+  }, [location.hash, location.key, location.state]);
 
   const parsedCustomAmount = Number(customSupportAmount);
   const supportAmount = customSupportAmount.trim() && Number.isFinite(parsedCustomAmount) && parsedCustomAmount > 0
@@ -328,6 +329,13 @@ const Landing = () => {
 
     supportSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setShowSupportQr(true);
+  };
+
+  const handleMobileSupportClick = () => {
+    setIsMobileMenuOpen(false);
+    window.setTimeout(() => {
+      scrollToSupportSection();
+    }, 300);
   };
 
   return (
@@ -433,10 +441,7 @@ const Landing = () => {
                 </Link>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    scrollToSupportSection();
-                    setIsMobileMenuOpen(false);
-                  }}
+                  onClick={handleMobileSupportClick}
                   className="w-full rounded-xl font-medium hover:bg-primary/5 text-primary"
                 >
                   Support 💜

@@ -21,7 +21,7 @@ const adminNavItems = [
   { to: '/admin-dashboard', icon: LayoutDashboard, label: 'Analytics' },
 ];
 
-const supportNavLabel = 'Support ❤️';
+const supportNavLabel = 'Support';
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();

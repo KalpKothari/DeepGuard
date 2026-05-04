@@ -1,18 +1,18 @@
 import type { NavigateFunction } from 'react-router-dom';
 
-export const SUPPORT_SECTION_ID = 'support-section';
+export const SUPPORT_SECTION_ID = 'support';
 
 export const scrollToSupportSection = () => {
-  document.getElementById(SUPPORT_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const supportSection = document.getElementById(SUPPORT_SECTION_ID) ?? document.getElementById('support-section');
+
+  supportSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 export const goToSupportSection = (navigate: NavigateFunction, pathname: string) => {
   if (pathname === '/') {
-    scrollToSupportSection();
+    window.requestAnimationFrame(scrollToSupportSection);
     return;
   }
 
-  navigate('/', {
-    state: { scrollToSupportSection: true },
-  });
+  navigate(`/#${SUPPORT_SECTION_ID}`);
 };
