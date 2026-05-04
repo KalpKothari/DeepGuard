@@ -5,7 +5,7 @@ import { QRCodeSVG as QRCode } from 'qrcode.react';
 import { 
   Shield, Upload, Zap, Lock, ArrowRight, CheckCircle, 
   BarChart3, Globe, ShieldCheck, Cpu, HelpCircle, AlertTriangle,
-  Activity, Video, Image as ImageIcon, TrendingUp, Heart, QrCode, Smartphone, IndianRupee, Sparkles
+  Activity, Video, Image as ImageIcon, TrendingUp, Heart, QrCode, Smartphone, IndianRupee, Sparkles, Menu, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -245,6 +245,7 @@ const Landing = () => {
   const [customSupportAmount, setCustomSupportAmount] = useState('');
   const [showSupportQr, setShowSupportQr] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const supportSectionRef = useRef<HTMLDivElement>(null);
 
   // Scroll-driven hero parallax
@@ -358,7 +359,9 @@ const Landing = () => {
             </motion.div>
             <span className="font-heading text-lg font-bold text-foreground">DeepGuard</span>
           </motion.div>
-          <div className="flex gap-2 items-center">
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex gap-2 items-center">
             {user ? (
               <Link to="/dashboard">
                 <Button className="rounded-xl gradient-primary text-primary-foreground font-semibold shadow-md hover:shadow-primary/25 transition-all">
@@ -367,7 +370,7 @@ const Landing = () => {
               </Link>
             ) : (
               <>
-                <Link to="/login" className="hidden sm:block">
+                <Link to="/login">
                   <Button variant="ghost" className="rounded-xl font-medium hover:bg-primary/5">Sign In</Button>
                 </Link>
                 <Link to="/signup">
@@ -387,7 +390,61 @@ const Landing = () => {
               </>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-primary/10 rounded-lg transition-colors"
+          >
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6 text-foreground" />
+            ) : (
+              <Menu className="w-6 h-6 text-foreground" />
+            )}
+          </motion.button>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: isMobileMenuOpen ? 1 : 0, height: isMobileMenuOpen ? 'auto' : 0 }}
+          transition={{ duration: 0.3 }}
+          className="md:hidden overflow-hidden border-t border-border/40"
+        >
+          <div className="px-4 py-4 space-y-2 bg-background/95 backdrop-blur-md">
+            {user ? (
+              <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button className="w-full rounded-xl gradient-primary text-primary-foreground font-semibold shadow-md hover:shadow-primary/25 transition-all">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full rounded-xl font-medium hover:bg-primary/5">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button className="w-full rounded-xl gradient-primary text-primary-foreground font-semibold shadow-md hover:shadow-primary/25 transition-all">
+                    Get Started
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    scrollToSupportSection();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full rounded-xl font-medium hover:bg-primary/5 text-primary"
+                >
+                  Support 💜
+                </Button>
+              </>
+            )}
+          </div>
+        </motion.div>
       </motion.nav>
 
       {/* ── HERO ── */}
